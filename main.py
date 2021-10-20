@@ -17,11 +17,14 @@ from utils import progress_bar
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+parser.add_argument('--ffcv-out-path', type=str,
+                    help='logging for ffcv baseline', required=True)
 parser.add_argument('--resume', '-r', action='store_true',
                     help='resume from checkpoint')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f'==> using device {device}')
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
@@ -112,6 +115,9 @@ def train(epoch):
         progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                      % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
+    acc = correct / total
+    return acc
+
 
 def test(epoch):
     global best_acc
@@ -134,13 +140,18 @@ def test(epoch):
                          % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
     # Save checkpoint.
-    acc = 100.*correct/total
+    acc = correct/total
     return acc
 
 
 for epoch in range(start_epoch, start_epoch+200):
-    train(epoch)
+    train_acc = train(epoch)
     test_acc = test(epoch)
     scheduler.step()
 
 print(f'ffcv benchmark accuracy: {test_acc}%')
+import pandas as pd
+res = pd.Series({
+    'test_acc':test_acc,
+    'train_acc':train_acc
+}).to_csv(args.ffcv_out_path)
